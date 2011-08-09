@@ -1,0 +1,14 @@
+# Android ignores
+.metadata
+tmp/**
+*.tmp
+*.bak
+tmp/**/*
+*.swp
+*~.nib
+*~
+*.apk
+bin
+gen
+local.properties
+*.jar
