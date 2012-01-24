@@ -46,6 +46,19 @@ import android.widget.ImageView;
 import android.widget.Scroller;
 
 public class ImageMap extends ImageView {
+	
+	// mFitImageToScreen
+	// if true - initial image resized to fit the screen, aspect ratio may be broken
+	// if false- initial image resized so that no empty screen is visible, aspect ratio maintained
+	//           image size will likely be larger than screen
+	private boolean mFitImageToScreen=true;
+	
+	// mMaxSize controls the maximum zoom size as a multiplier of the initial size.
+	// Allowing size to go too large may result in memory problems.
+	//  set this to 1.0f to disable resizing
+	private float mMaxSize = 1.5f;
+	
+	
 	/*
 	 * Touch event handling variables
 	 */
@@ -57,7 +70,7 @@ public class ImageMap extends ImageView {
 
 	private Scroller mScroller;
 
-	private boolean mIsBeingDragged = false;
+	private boolean mIsBeingDragged = false;	
 	
 	HashMap<Integer,TouchPoint> mTouchPoints = new HashMap<Integer,TouchPoint>();
 	TouchPoint mMainTouch=null;
@@ -82,8 +95,6 @@ public class ImageMap extends ImageView {
 	/*
 	 * Bitmap handling
 	 */
-	// support setImage as drawable or bitmap
-	Drawable mDrawable;
 	Bitmap mImage;
 
 	// Info about the bitmap (sizes, scroll bounds)
@@ -97,8 +108,9 @@ public class ImageMap extends ImageView {
 	// the right and bottom edges (for scroll restriction)
 	int mRightBound;
 	int mBottomBound;
-	// the current zoom scale
-	float mScaleFactor=1.0f;
+	// the current zoom scaling (X and Y kept separate)
+	private float mResizeFactorX;
+	private float mResizeFactorY;
 	// minimum height/width for the image
 	int mMinWidth=-1;
 	int mMinHeight=-1;
@@ -125,6 +137,7 @@ public class ImageMap extends ImageView {
 	
 	// list of open info bubbles
 	HashMap<Integer,Bubble> mBubbleMap = new HashMap<Integer,Bubble>();
+
 	
 	
 	/*
@@ -313,8 +326,8 @@ public class ImageMap extends ImageView {
 	public void centerArea( int areaId ) {
 		Area a = mIdToArea.get(areaId);
 		if (a != null) {
-			float x = a.getOriginX()*mScaleFactor;
-			float y = a.getOriginY()*mScaleFactor;
+			float x = a.getOriginX()*mResizeFactorX;
+			float y = a.getOriginY()*mResizeFactorY;
 			int left = (int)((mViewWidth/2)-x);
 			int top  = (int)((mViewHeight/2)-y);
 			moveTo(left,top);
@@ -385,10 +398,10 @@ public class ImageMap extends ImageView {
 	}
 
 	@Override
-	public void setImageDrawable(Drawable drawable) {
+	public void setImageDrawable(Drawable drawable) {		
 		if (drawable instanceof BitmapDrawable) {
-			mDrawable = drawable;
-			setImageBitmap(((BitmapDrawable)drawable).getBitmap());
+			BitmapDrawable bd = (BitmapDrawable) drawable; 			
+			setImageBitmap(bd.getBitmap());
 		}
 	}
 
@@ -461,11 +474,42 @@ public class ImageMap extends ImageView {
 		}
 	}
 
+
 	/**
-	 * setInitialImageBounds sets the initial image size to fit the
-	 * screen, sets up scroll bounds and resizes the image if necessary
+	 * set the initial bounds of the image
 	 */
 	void setInitialImageBounds() {
+		if (mFitImageToScreen) {
+			setInitialImageBoundsFitImage();
+		} else {
+			setInitialImageBoundsFillScreen();
+		}
+	}
+	
+	/**
+	 * setInitialImageBoundsFitImage sets the initial image size to match the
+	 * screen size.  aspect ratio may be broken
+	 */	
+	void setInitialImageBoundsFitImage() {
+		if (mImage != null) {
+			if (mViewWidth > 0) {			
+				mMinHeight = mViewHeight;
+				mMinWidth = mViewWidth; 
+				mMaxWidth = (int)(mMinWidth * mMaxSize);
+				mMaxHeight = (int)(mMinHeight * mMaxSize);				
+					
+				mScrollTop = 0;
+				mScrollLeft = 0;
+				scaleBitmap(mMinWidth, mMinHeight);
+		    }
+		}
+	}
+	
+	/**
+	 * setInitialImageBoundsFillScreen sets the initial image size to so that there
+	 * is no uncovered area of the device
+	 */	
+	void setInitialImageBoundsFillScreen() {
 		if (mImage != null) {
 			if (mViewWidth > 0) {
 				boolean resize=false;
@@ -479,6 +523,7 @@ public class ImageMap extends ImageView {
 				if (mMinWidth==-1) { 
 					// set minimums so that the largest
 					// direction we always filled (no empty view space)
+					// this maintains initial aspect ratio
 					if (mViewWidth > mViewHeight) {
 						mMinWidth = mViewWidth;
 						mMinHeight = (int)(mMinWidth/mAspect);
@@ -509,14 +554,16 @@ public class ImageMap extends ImageView {
 					scaleBitmap(newWidth, newHeight);
 				} else {
 					mExpandWidth=newWidth;
-					mExpandHeight=newHeight;
-					mScaleFactor = ((float) newWidth / mImageWidth);
+					mExpandHeight=newHeight;					
+					mResizeFactorX = ((float) newWidth / mImageWidth);
+					mResizeFactorY = ((float) newHeight / mImageHeight);
 					mRightBound = 0 - (mExpandWidth - mViewWidth);
 					mBottomBound = 0 - (mExpandHeight - mViewHeight);
 				}
 			}
 		}
 	}
+	
 	
 	/**
 	 * Set the image to new width and height
@@ -525,7 +572,7 @@ public class ImageMap extends ImageView {
 	 * @param newWidth
 	 * @param newHeight
 	 */
-	void scaleBitmap(int newWidth, int newHeight) {
+	public void scaleBitmap(int newWidth, int newHeight) {
 		// Technically since we always keep aspect ratio intact
 		// we should only need to check one dimension.
 		// Need to investigate and fix
@@ -537,12 +584,15 @@ public class ImageMap extends ImageView {
 			newWidth = mMinWidth;
 			newHeight = mMinHeight;			
 		}
+
 		if ((newWidth != mExpandWidth) || (newHeight!=mExpandHeight)) {	
 			// NOTE: depending on the image being used, it may be 
 			//       better to keep the original image available and
 			//       use those bits for resize.  Repeated grow/shrink
 			//       can render some images visually non-appealing
 			// try to create a new bitmap
+			// If you get a recycled bitmap exception here, check to make sure
+			// you are not setting the bitmap both from XML and in code
 			Bitmap newbits = Bitmap.createScaledBitmap(mImage, newWidth,
 					newHeight, true);
 			// if successful, fix up all the tracking variables
@@ -551,9 +601,11 @@ public class ImageMap extends ImageView {
 				mImage = newbits;
 				mExpandWidth=newWidth;
 				mExpandHeight=newHeight;
-				mScaleFactor = ((float) mExpandWidth / mImageWidth);
-				mRightBound = 0 - (mExpandWidth - mViewWidth);
-				mBottomBound = 0 - (mExpandHeight - mViewHeight);
+				mResizeFactorX = ((float) newWidth / mImageWidth);
+				mResizeFactorY = ((float) newHeight / mImageHeight);
+				
+				mRightBound = mExpandWidth>mViewWidth ? 0 - (mExpandWidth - mViewWidth) : 0;
+				mBottomBound = mExpandHeight>mViewHeight ? 0 - (mExpandHeight - mViewHeight) : 0;
 			}							
 		}
 	}
@@ -591,7 +643,11 @@ public class ImageMap extends ImageView {
 	protected void drawMap(Canvas canvas) {
 		canvas.save();
 		
-		canvas.drawBitmap(mImage, mScrollLeft, mScrollTop, null);
+		if (mImage != null) {
+			if (!mImage.isRecycled()) {
+				canvas.drawBitmap(mImage, mScrollLeft, mScrollTop, null);
+			}
+		}
 		canvas.restore();
 	}
 	
@@ -956,9 +1012,10 @@ public class ImageMap extends ImageView {
 		int testx = x-mScrollLeft;
 		int testy = y-mScrollTop;
 		
-		// adjust for scaling
-		testx = (int)((float)testx/mScaleFactor);
-		testy = (int)((float)testy/mScaleFactor);
+		// adjust for x y resize
+		testx = (int)((float)testx/mResizeFactorX);
+		testy = (int)((float)testy/mResizeFactorY);
+
 		
 		// check if bubble tapped first
 		// in case a bubble covers an area we want it to 
@@ -1163,8 +1220,8 @@ public class ImageMap extends ImageView {
 		// scaling and translation into account
 		public void onDraw(Canvas canvas) {
 			if (_decoration != null) {
-				float x = (getOriginX() * mScaleFactor) + mScrollLeft - 17;
-				float y = (getOriginY() * mScaleFactor) + mScrollTop - 17;
+				float x = (getOriginX() * mResizeFactorX) + mScrollLeft - 17;
+				float y = (getOriginY() * mResizeFactorY) + mScrollTop - 17;
 				canvas.drawBitmap(_decoration, x, y, null);
 			}
 		}
@@ -1318,16 +1375,17 @@ public class ImageMap extends ImageView {
 		  }
 		  return c;
 		}		
-		/*
+		
 		// For debugging maps, it is occasionally helpful to see the
 		// bounding box for the polygons
+		/*
 		@Override
 		public void onDraw(Canvas canvas) {
 		    // draw the bounding box
-			canvas.drawRect(left * mScaleFactor + mScrollLeft, 
-					        top * mScaleFactor + mScrollTop, 
-					        right * mScaleFactor + mScrollLeft, 
-					        bottom * mScaleFactor + mScrollTop, 
+			canvas.drawRect(left * mResizeFactorX + mScrollLeft, 
+					        top * mResizeFactorY + mScrollTop, 
+					        right * mResizeFactorX + mScrollLeft, 
+					        bottom * mResizeFactorY + mScrollTop, 
 					        textOutlinePaint);
 		}
 		*/
@@ -1402,8 +1460,8 @@ public class ImageMap extends ImageView {
 		
 		void init(String text, float x, float y) {
 			_text = text;
-			_x = x*mScaleFactor;
-			_y = y*mScaleFactor;
+			_x = x*mResizeFactorX;
+			_y = y*mResizeFactorY;
 			Rect bounds = new Rect();
 			textPaint.setTextScaleX(1.0f);
 			textPaint.getTextBounds(text, 0, _text.length(), bounds);
@@ -1487,7 +1545,7 @@ public class ImageMap extends ImageView {
 			    path.close();
 			    canvas.drawPath(path, bubblePaint);
 			    
-			    // draw the messaeg
+			    // draw the message
 			    canvas.drawText(_text,l+(_w/2),t+_baseline-10,textPaint);
 			}
 		}
@@ -1505,7 +1563,7 @@ public class ImageMap extends ImageView {
 	/**
 	 * Map tapped callback interface
 	 */
-	interface OnImageMapClickedHandler {
+	public interface OnImageMapClickedHandler {
 		/**
 		 * Area with 'id' has been tapped
 		 * @param id
