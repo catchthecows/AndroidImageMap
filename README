@@ -1,3 +1,102 @@
-An implementation of an HTML map like element in an Android View.
+An implementation of an HTML map like element in an Android View:
 
-More docs soon.
+- Supports images as drawable or bitmap in layout
+- Allows for a list of area tags in xml
+- Enables use of cut and paste HTML area tags to a resource xml  (ie, the ability to take an HTML map - and image and use it with minimal editing)
+- Supports panning if the image is larger than the device screen
+- Supports pinch-zoom
+- Supports callbacks when an area is tapped.
+- Supports showing annotations as bubble text and provide callback if the bubble is tapped
+
+
+New in this version:
+By default, the initial image is resized to fit the view dimensions with no regard to maintaining aspect ratio.  This appears to be the most common use.  
+
+To have the aspect ratio kept:
+change this (ImageView.java line 54) to from true to false
+private boolean mFitImageToScreen=true;  
+
+Common issues:
+NOTE: You will need to change the xmlns (xml namespace) to match the base package of your application
+xmlns:ctc="http://schemas.android.com/apk/res/com.ctc.android.widget"
+becomes
+xmlns:ctc="http://schemas.android.com/apk/res/YOURPACKAGE"
+
+The package is listed in your AndroidManifest.xml file (ie package="com.ctc.android.widget" )
+
+
+
+Use notes:
+
+To associate the map with the img, list the map in in ImageMap attributes
+
+<!--?xml version="1.0" encoding="utf-8"?-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:ctc="http://schemas.android.com/apk/res/com.ctc.android.widget"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+    <com.ctc.android.widget.ImageMap
+        android:id="@+id/map"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:src="@drawable/usamap"
+        ctc:map="usamap"/>
+</LinearLayout>
+
+
+The area map is specified in your project at res/xml/map.xml
+One difference over HTML maps is that each area must have an id. I went back and forth on this requirement, and I may change the code to allow for areas without id. The code will use the name attribute if present, otherwise it will look for title or alt.
+
+<!--?xml version="1.0" encoding="utf-8"?-->
+<maps xmlns:android="http://schemas.android.com/apk/res/android">
+    <map name="gridmap">
+        <area id="@+id/area1001" shape="rect" coords="118,124,219,226" />
+        <area id="@+id/area1002" shape="rect" coords="474,374,574,476" />
+        <area id="@+id/area1004" shape="rect" coords="710,878,808,980" />
+        <area id="@+id/area1005" shape="circle" coords="574,214,74" />
+        <area id="@+id/area1006" shape="poly" coords="250,780,250,951,405,951" />
+        <area id="@+id/area1007" shape="poly" coords="592,502,592,730,808,730,808,502,709,502,709,603,690,603,690,502" />
+    </map>
+    <map name="usamap">
+        <area id="@+id/area1" shape="poly" coords="230,35,294,38,299,57,299,79,228,79" />
+...
+     </map>
+</maps>
+
+The image itself is placed in res/drawable-nodpi so that the system will not attempt to fit the image to the device based on dpi. This way we are guaranteed that our area coordinates will map properly to the displayed image.  If you want to use different density drawables, you will have to make changes in the code based on the DisplayMetrics.density.
+
+Here is a sample activity that finds the view in the layout and adds an on click handler
+
+public class ImageMapTestActivity extends Activity {
+    ImageMap mImageMap;
+ 
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.main);
+ 
+        // find the image map in the view
+        mImageMap = (ImageMap)findViewById(R.id.map);
+ 
+        // add a click handler to react when areas are tapped
+        mImageMap.addOnImageMapClickedHandler(new ImageMap.OnImageMapClickedHandler() {
+            @Override
+            public void onImageMapClicked(int id) {
+                // when the area is tapped, show the name in a
+                // text bubble
+                mImageMap.showBubble(id);
+            }
+ 
+            @Override
+            public void onBubbleClicked(int id) {
+                // react to info bubble for area being tapped
+            }
+        });
+    }
+}
+
+Don't hesitate to ask if you have any other questions.
+
