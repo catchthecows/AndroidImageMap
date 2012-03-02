@@ -53,6 +53,14 @@ public class ImageMap extends ImageView {
 	//           image size will likely be larger than screen
 	private boolean mFitImageToScreen=true;
 	
+	// For certain images, it is best to always resize using the original
+	// image bits.  This requires keeping the original image in memory along with the
+	// current sized version and thus takes extra memory.
+	// If you always want to resize using the original, set mScaleFromOriginal to true
+	// If you want to use less memory, and the image scaling up and down repeatedly
+	// does not blur or loose quality, set mScaleFromOriginal to false
+	private boolean mScaleFromOriginal=true;
+	
 	// mMaxSize controls the maximum zoom size as a multiplier of the initial size.
 	// Allowing size to go too large may result in memory problems.
 	//  set this to 1.0f to disable resizing
@@ -96,6 +104,8 @@ public class ImageMap extends ImageView {
 	 * Bitmap handling
 	 */
 	Bitmap mImage;
+	Bitmap mOriginal;
+	
 
 	// Info about the bitmap (sizes, scroll bounds)
 	// initial size
@@ -380,11 +390,18 @@ public class ImageMap extends ImageView {
 	 */
 	@Override
 	public void setImageBitmap(Bitmap bm) {
+		if (mImage==mOriginal) {
+			mOriginal=null;
+		} else {
+			mOriginal.recycle();
+			mOriginal=null;
+		}
 		if (mImage != null) {
 			mImage.recycle();
 			mImage=null;
 		}
 		mImage = bm;
+		mOriginal = bm;
 		mImageHeight = mImage.getHeight();
 		mImageWidth = mImage.getWidth();
 		mAspect = (float)mImageWidth / mImageHeight;
@@ -590,14 +607,17 @@ public class ImageMap extends ImageView {
 			//       better to keep the original image available and
 			//       use those bits for resize.  Repeated grow/shrink
 			//       can render some images visually non-appealing
+			//       see comments at top of file for mScaleFromOriginal
 			// try to create a new bitmap
 			// If you get a recycled bitmap exception here, check to make sure
 			// you are not setting the bitmap both from XML and in code
-			Bitmap newbits = Bitmap.createScaledBitmap(mImage, newWidth,
+			Bitmap newbits = Bitmap.createScaledBitmap(mScaleFromOriginal ? mOriginal:mImage, newWidth,
 					newHeight, true);
 			// if successful, fix up all the tracking variables
 			if (newbits != null) {
-				mImage.recycle();
+				if (mImage!=mOriginal) {
+					mImage.recycle();
+				}
 				mImage = newbits;
 				mExpandWidth=newWidth;
 				mExpandHeight=newHeight;
