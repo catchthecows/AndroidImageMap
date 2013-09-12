@@ -1,3 +1,11 @@
+eclipse quickstart:
+
+- git clone https://github.com/catchthecows/AndroidImageMap.git
+- Run Eclipse and choose a workspace
+- File|New->Project...
+- Select Android Project from Existing Code
+- Browse to AndroidImageMap and hit Finish
+
 An implementation of an HTML map like element in an Android View:
 
 - Supports images as drawable or bitmap in layout
