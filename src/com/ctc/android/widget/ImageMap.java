@@ -186,8 +186,8 @@ public class ImageMap extends ImageView
 
 		this.mFitImageToScreen = a.getBoolean(R.styleable.ImageMap_fitImageToScreen, true);
 		this.mScaleFromOriginal = a.getBoolean(R.styleable.ImageMap_scaleFromOriginal, false);
-
 		this.mMaxSize = a.getFloat(R.styleable.ImageMap_maxSizeFactor, defaultMaxSize);
+
 		this.mapName = a.getString(R.styleable.ImageMap_map);
 		if (mapName != null)
 		{
