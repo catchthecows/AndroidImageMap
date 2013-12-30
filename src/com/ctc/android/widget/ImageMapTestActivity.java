@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-
 package com.ctc.android.widget;
 
 import android.app.Activity;
+import android.media.Image;
 import android.os.Bundle;
 
 public class ImageMapTestActivity extends Activity {
@@ -32,16 +32,19 @@ public class ImageMapTestActivity extends Activity {
         mImageMap = (ImageMap)findViewById(R.id.map);
         
         // add a click handler to react when areas are tapped
-        mImageMap.addOnImageMapClickedHandler(new ImageMap.OnImageMapClickedHandler() {
+        mImageMap.addOnImageMapClickedHandler(new ImageMap.OnImageMapClickedHandler()
+        {
 			@Override
-			public void onImageMapClicked(int id) {
+			public void onImageMapClicked(int id, ImageMap imageMap)
+			{
 				// when the area is tapped, show the name in a 
 				// text bubble
 				mImageMap.showBubble(id);
 			}
 
 			@Override
-			public void onBubbleClicked(int id) {
+			public void onBubbleClicked(int id)
+			{
 				// react to info bubble for area being tapped
 			}
 		});
