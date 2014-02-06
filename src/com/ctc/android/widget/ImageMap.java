@@ -155,6 +155,9 @@ public class ImageMap extends ImageView
 	// accounting for screen density
 	protected float densityFactor;
 
+	//possible to reduce memory consumption
+	protected BitmapFactory.Options options;
+
 	/*
 	 * Constructors
 	 */
@@ -453,11 +456,30 @@ public class ImageMap extends ImageView
 	}
 
 	@Override
-	public void setImageResource(int resId) {
-		Bitmap b = BitmapFactory.decodeResource(getResources(), resId);
-		setImageBitmap(b);
+	public void setImageResource(int resId)
+	{
+		final String imageKey = String.valueOf(resId);
+		BitmapHelper bitmapHelper = BitmapHelper.getInstance();
+		Bitmap bitmap = bitmapHelper.getBitmapFromMemCache(imageKey);
+
+		// 1 is the default setting, powers of 2 used to decrease image quality (and memory consumption)
+		// TODO: enable variable inSampleSize for low-memory devices
+		options = new BitmapFactory.Options();
+		options.inSampleSize = 1;
+
+		if (bitmap == null)
+		{
+			bitmap = BitmapFactory.decodeResource(getResources(), resId, options);
+			bitmapHelper.addBitmapToMemoryCache(imageKey, bitmap);
+		}
+		setImageBitmap(bitmap);
 	}
 
+	/*
+		setImageDrawable() is called by Android when the android:src attribute is set.
+		To avoid this and use the more flexible setImageResource(),
+		it is advised to omit the android:src attribute and call setImageResource() directly from code.
+	 */
 	@Override
 	public void setImageDrawable(Drawable drawable) {
 		if (drawable instanceof BitmapDrawable) {
@@ -1109,8 +1131,29 @@ public class ImageMap extends ImageView
 		int testx = x-mScrollLeft;
 		int testy = y-mScrollTop;
 
-		testx = (int)(((float)testx/mResizeFactorX)/densityFactor);
-		testy = (int)(((float)testy/mResizeFactorY)/densityFactor);
+		/*
+			Empirically, this works, but it's not guaranteed to be correct.
+			Seems that we need to divide by densityFactor only if the picture is larger than the screen.
+			When it is smaller than the screen, we don't need to do that.
+
+			TODO: investigate this in detail.
+		 */
+		if (mResizeFactorX > 1)
+		{
+			testx = (int)(((float)testx/mResizeFactorX));
+		}
+		else
+		{
+			testx = (int)(((float)testx/mResizeFactorX)/densityFactor);
+		}
+		if (mResizeFactorY > 1)
+		{
+			testy = (int)(((float)testy/mResizeFactorY));
+		}
+		else
+		{
+			testy = (int)(((float)testy/mResizeFactorY)/densityFactor);
+		}
 
 		// check if bubble tapped first
 		// in case a bubble covers an area we want it to

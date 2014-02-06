@@ -30,6 +30,7 @@ public class ImageMapTestActivity extends Activity {
         
         // find the image map in the view
         mImageMap = (ImageMap)findViewById(R.id.map);
+	    mImageMap.setImageResource(R.drawable.usamap);
         
         // add a click handler to react when areas are tapped
         mImageMap.addOnImageMapClickedHandler(new ImageMap.OnImageMapClickedHandler()

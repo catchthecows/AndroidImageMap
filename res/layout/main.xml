@@ -4,12 +4,15 @@
     xmlns:ctc="http://schemas.android.com/apk/res/com.ctc.android.widget"
     android:orientation="vertical"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    >
+    android:layout_height="fill_parent">
+
 	<com.ctc.android.widget.ImageMap  
 	    android:id="@+id/map"
     	android:layout_width="fill_parent" 
-    	android:layout_height="fill_parent" 
-    	android:src="@drawable/usamap"
-    	ctc:map="usamap"/>
+    	android:layout_height="fill_parent"
+    	ctc:map="usamap"
+        ctc:maxSizeFactor="1.5"
+        ctc:scaleFromOriginal="true"
+        ctc:fitImageToScreen="true"/>
+
 </LinearLayout>
