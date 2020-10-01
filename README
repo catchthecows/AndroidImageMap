@@ -31,6 +31,7 @@ becomes
 xmlns:ctc="http://schemas.android.com/apk/res/YOURPACKAGE"
 
 The package is listed in your AndroidManifest.xml file (ie package="com.ctc.android.widget" )
+This is really helpful
 
 
 
